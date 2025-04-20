@@ -1,9 +1,9 @@
 const Payment = require('../models/paymentModel');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
-exports.createPayment = async (req, res, next) => {
+exports.createPaymentIntent = async (req, res, next) => {
   try {
-    const { amount, paymentMethodId, subscriptionId } = req.body;
+    const { amount } = req.body;
     const clientId = req.user._id;
 
     // Create or retrieve Stripe customer
@@ -23,15 +23,30 @@ exports.createPayment = async (req, res, next) => {
       amount: Math.round(amount * 100), // amount in cents
       currency: 'usd',
       customer: stripeCustomerId,
-      payment_method: paymentMethodId,
-      off_session: true,
-      confirm: true,
     });
+
+    res.status(201).json({ clientSecret: paymentIntent.client_secret, paymentIntentId: paymentIntent.id });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.confirmPayment = async (req, res, next) => {
+  try {
+    const { paymentIntentId, subscriptionId } = req.body;
+    const clientId = req.user._id;
+
+    // Confirm payment intent
+    const paymentIntent = await stripe.paymentIntents.confirm(paymentIntentId);
+
+    if (paymentIntent.status !== 'succeeded') {
+      return res.status(400).json({ message: 'Payment not successful' });
+    }
 
     // Save payment record
     const payment = new Payment({
       client: clientId,
-      amount,
+      amount: paymentIntent.amount / 100,
       status: 'completed',
       stripePaymentId: paymentIntent.id,
       creditCardLast4: paymentIntent.charges.data[0].payment_method_details.card.last4,
@@ -39,14 +54,22 @@ exports.createPayment = async (req, res, next) => {
     });
     await payment.save();
 
-    res.status(201).json(payment);
-  } catch (err) {
-    if (err.raw && err.raw.message) {
-      return res.status(400).json({ message: err.raw.message });
+    // Update subscription status to active if subscriptionId provided
+    if (subscriptionId) {
+      const Subscription = require('../models/subscriptionModel');
+      const subscription = await Subscription.findById(subscriptionId);
+      if (subscription) {
+        subscription.status = 'active';
+        await subscription.save();
+      }
     }
+
+    res.status(200).json({ payment, message: 'Payment confirmed and subscription activated' });
+  } catch (err) {
     next(err);
   }
 };
+
 
 exports.getPayments = async (req, res, next) => {
   try {
