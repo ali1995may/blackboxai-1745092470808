@@ -14,6 +14,12 @@ exports.createBrand = async (req, res, next) => {
       return res.status(403).json({ message: 'Active subscription required to add brand' });
     }
 
+    // Check brand count limit
+    const brandCount = await Brand.countDocuments({ client: req.user._id });
+    if (brandCount >= subscription.plan.numberOfBrands) {
+      return res.status(403).json({ message: 'Brand limit exceeded for your subscription plan' });
+    }
+
     const brand = new Brand({
       client: req.user._id,
       ...req.body,
