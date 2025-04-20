@@ -14,6 +14,12 @@ exports.createVideo = async (req, res, next) => {
       return res.status(403).json({ message: 'Active subscription required to add video' });
     }
 
+    // Check video count limit
+    const videoCount = await Video.countDocuments({ client: req.user._id });
+    if (videoCount >= subscription.plan.numberOfVideos) {
+      return res.status(403).json({ message: 'Video limit exceeded for your subscription plan' });
+    }
+
     const video = new Video({
       client: req.user._id,
       ...req.body,
