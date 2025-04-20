@@ -3,16 +3,16 @@ const Video = require('../models/videoModel');
 const { exec } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const { Configuration, OpenAIApi } = require('openai');
+const OpenAI = require('openai');
 const ytdl = require('ytdl-core');
+require('dotenv').config();
 
-const HEYGEN_API_KEY = process.env.HEYGEN_API_KEY || 'YOUR_HEYGEN_API_KEY';
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'YOUR_OPENAI_API_KEY';
+const HEYGEN_API_KEY = process.env.HEYGEN_API_KEY;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
-const openaiConfig = new Configuration({
+const openai = new OpenAI({
   apiKey: OPENAI_API_KEY,
 });
-const openai = new OpenAIApi(openaiConfig);
 
 // Helper functions
 async function downloadVideo(url, outputPath) {
@@ -37,8 +37,11 @@ async function extractAudio(videoPath) {
 
 async function transcribeAudio(audioPath) {
   const fileStream = fs.createReadStream(audioPath);
-  const response = await openai.createTranscription(fileStream, 'whisper-1');
-  return response.data.text;
+  const response = await openai.audio.transcriptions.create({
+    file: fileStream,
+    model: 'whisper-1',
+  });
+  return response.text;
 }
 
 // API: Extract text from video URL
