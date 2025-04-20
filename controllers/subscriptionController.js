@@ -13,6 +13,26 @@ exports.createSubscription = async (req, res, next) => {
       return res.status(404).json({ message: 'Plan not found' });
     }
 
+    // If plan price is zero, create active subscription without Stripe
+    if (plan.price === 0) {
+      const startDate = new Date();
+      // Set endDate to 1 year from now or any desired duration for free plan
+      const endDate = new Date();
+      endDate.setFullYear(endDate.getFullYear() + 1);
+
+      const newSubscription = new Subscription({
+        client: clientId,
+        plan: planId,
+        startDate,
+        endDate,
+        status: 'active',
+        stripeSubscriptionId: 'free-plan',
+      });
+      await newSubscription.save();
+
+      return res.status(201).json({ subscription: newSubscription, message: 'Free plan activated' });
+    }
+
     // Create or retrieve Stripe customer
     let stripeCustomerId = req.user.stripeCustomerId;
     if (!stripeCustomerId) {
@@ -109,8 +129,10 @@ exports.cancelSubscription = async (req, res, next) => {
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    // Cancel subscription in Stripe
-    await stripe.subscriptions.del(subscription.stripeSubscriptionId);
+    // Cancel subscription in Stripe if not free plan
+    if (subscription.stripeSubscriptionId !== 'free-plan') {
+      await stripe.subscriptions.del(subscription.stripeSubscriptionId);
+    }
 
     subscription.status = 'cancelled';
     await subscription.save();
