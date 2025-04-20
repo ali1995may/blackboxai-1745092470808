@@ -1,26 +1,18 @@
 {
-  "name": "subscription-api",
+  "name": "ai-video-generate",
   "version": "1.0.0",
-  "description": "Node.js API for subscription management with Stripe and Facebook Ads integration",
+  "description": "AI Video generate",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
+    "start": "node server.js"
   },
   "dependencies": {
     "axios": "^1.4.0",
-    "bcryptjs": "^2.4.3",
-    "dotenv": "^16.3.1",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
     "express": "^4.18.2",
-    "jsonwebtoken": "^9.0.0",
     "mongoose": "^7.3.1",
-    "stripe": "^12.15.0",
-    "swagger-jsdoc": "^6.2.8",
-    "swagger-ui-express": "^4.6.3"
-  },
-  "devDependencies": {
-    "nodemon": "^3.0.1"
-  },
-  "author": "",
-  "license": "ISC"
+    "openai": "^4.6.0",
+    "ytdl-core": "^4.11.0"
+  }
 }
