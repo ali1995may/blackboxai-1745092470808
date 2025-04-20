@@ -12,6 +12,69 @@ const { authenticate, authorizeRoles } = require('../middleware/authMiddleware')
 
 /**
  * @swagger
+ * /api/payments/create-payment-intent:
+ *   post:
+ *     summary: Create a new payment intent (client only)
+ *     tags: [Payments]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - amount
+ *             properties:
+ *               amount:
+ *                 type: number
+ *     responses:
+ *       201:
+ *         description: Payment intent created successfully
+ *       400:
+ *         description: Payment intent creation failed
+ *       401:
+ *         description: Unauthorized
+ */
+router.post('/create-payment-intent', authenticate, authorizeRoles('client'), paymentController.createPaymentIntent);
+
+/**
+ * @swagger
+ * /api/payments/confirm-payment:
+ *   post:
+ *     summary: Confirm a payment intent and activate subscription (client only)
+ *     tags: [Payments]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - paymentIntentId
+ *               - paymentMethodId
+ *             properties:
+ *               paymentIntentId:
+ *                 type: string
+ *               paymentMethodId:
+ *                 type: string
+ *               subscriptionId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Payment confirmed and subscription activated
+ *       400:
+ *         description: Payment confirmation failed
+ *       401:
+ *         description: Unauthorized
+ */
+router.post('/confirm-payment', authenticate, authorizeRoles('client'), paymentController.confirmPayment);
+
+/**
+ * @swagger
  * /api/payments:
  *   post:
  *     summary: Create a new payment (client only)
