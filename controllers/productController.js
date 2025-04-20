@@ -15,6 +15,12 @@ exports.createProduct = async (req, res, next) => {
       return res.status(403).json({ message: 'Active subscription required to add product' });
     }
 
+    // Check product count limit
+    const productCount = await Product.countDocuments({ brand: req.body.brand });
+    if (productCount >= subscription.plan.numberOfProducts) {
+      return res.status(403).json({ message: 'Product limit exceeded for your subscription plan' });
+    }
+
     // Check brand ownership
     const brand = await Brand.findById(req.body.brand);
     if (!brand) {
