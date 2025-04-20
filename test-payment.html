@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Test Payment for Plan</title>
+  <script src="https://js.stripe.com/v3/"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 480px;
+      margin: 2rem auto;
+      padding: 1rem;
+      background: #f9f9f9;
+      border-radius: 8px;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+    #card-element {
+      border: 1px solid #ccc;
+      padding: 10px;
+      border-radius: 4px;
+      background: white;
+    }
+    #payment-message {
+      margin-top: 1rem;
+      font-weight: bold;
+    }
+    button {
+      margin-top: 1rem;
+      width: 100%;
+      padding: 12px;
+      background-color: #6772e5;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    button:disabled {
+      background-color: #bbb;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <h1>Test Payment for Plan</h1>
+  <form id="payment-form">
+    <label for="amount">Plan Price (USD):</label>
+    <input type="number" id="amount" name="amount" value="10" min="0" step="0.01" required />
+    <div id="card-element"></div>
+    <button id="submit" type="submit">Pay</button>
+    <div id="payment-message"></div>
+  </form>
+
+  <script>
+    // Replace with your backend API base URL
+    const API_BASE_URL = '';
+
+    const stripe = Stripe('pk_test_51N6x...'); // Replace with your Stripe publishable key
+
+    const elements = stripe.elements();
+    const cardElement = elements.create('card');
+    cardElement.mount('#card-element');
+
+    const form = document.getElementById('payment-form');
+    const submitButton = document.getElementById('submit');
+    const paymentMessage = document.getElementById('payment-message');
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      submitButton.disabled = true;
+      paymentMessage.textContent = '';
+
+      const amount = parseFloat(document.getElementById('amount').value);
+      if (isNaN(amount) || amount < 0) {
+        paymentMessage.textContent = 'Please enter a valid amount.';
+        submitButton.disabled = false;
+        return;
+      }
+
+      try {
+        // Step 1: Create Payment Intent on backend
+        const createIntentResponse = await fetch(`${API_BASE_URL}/api/payment/create-payment-intent`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            // Include auth token if your API requires authentication
+            // 'Authorization': 'Bearer YOUR_JWT_TOKEN',
+          },
+          body: JSON.stringify({ amount }),
+        });
+        const { clientSecret, paymentIntentId } = await createIntentResponse.json();
+
+        // Step 2: Confirm Card Payment on frontend
+        const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+          payment_method: {
+            card: cardElement,
+          },
+        });
+
+        if (error) {
+          paymentMessage.textContent = `Payment failed: ${error.message}`;
+          submitButton.disabled = false;
+          return;
+        }
+
+        if (paymentIntent.status === 'succeeded') {
+          paymentMessage.textContent = 'Payment succeeded!';
+
+          // Step 3: Confirm payment on backend to save payment and activate subscription
+          // Replace subscriptionId with actual subscription id if applicable
+          const subscriptionId = null;
+
+          const confirmResponse = await fetch(`${API_BASE_URL}/api/payment/confirm-payment`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              // 'Authorization': 'Bearer YOUR_JWT_TOKEN',
+            },
+            body: JSON.stringify({ paymentIntentId: paymentIntent.id, subscriptionId }),
+          });
+          const confirmResult = await confirmResponse.json();
+
+          if (confirmResponse.ok) {
+            paymentMessage.textContent += ' Subscription activated.';
+          } else {
+            paymentMessage.textContent += ` Error activating subscription: ${confirmResult.message}`;
+          }
+        } else {
+          paymentMessage.textContent = `Payment status: ${paymentIntent.status}`;
+          submitButton.disabled = false;
+        }
+      } catch (err) {
+        paymentMessage.textContent = `Error: ${err.message}`;
+        submitButton.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
